@@ -78,5 +78,62 @@ def describe_save_strings_method():
         args, kwargs = mock_pickle.call_args
         assert args[0] == ["Chicken", "nuggets", "are", "amazing", "and", "I", "love", "to", "eat", "them", "especially", "dino", "nuggs", "because", "they", "are", "the", "bomb"]
 
+def describe_save_string_method():
+
+    def it_calls_loadStrings_correctly(mocker):
+        db = MyDB("dummyfile")
+
+        mock_load = mocker.patch.object(db, "loadStrings", return_value=[])
+
+        mocker.patch.object(db, "saveStrings")
+
+        db.saveString("Nugget")
+
+        mock_load.assert_called_once()
+
+    def it_calls_saveStrings_correctly(mocker):
+        db = MyDB("dummyfile")
+
+        mocker.patch.object(db, "loadStrings", return_value=[])
+
+        mock_save = mocker.patch.object(db, "saveStrings")
+
+        db.saveString("Nugget")
+
+        mock_save.assert_called_once()
+
+    def it_calls_both_loadStrings_and_saveStrings_correctly(mocker):
+        db = MyDB("dummyfile")
+
+        mock_load = mocker.patch.object(db, "loadStrings", return_value=[])
+
+        mock_save = mocker.patch.object(db, "saveStrings")
+
+        db.saveString("Nugget")
+
+        mock_load.assert_called_once()
+        mock_load.assert_called_once()
+
+    def it_appends_object_before_calling_saveStrings_correctly_single_item_array(mocker):
+        db = MyDB("dummyfile")
+
+        mocker.patch.object(db, "loadStrings", return_value=["Chicken"])
+
+        mock_save = mocker.patch.object(db, "saveStrings")
+
+        db.saveString("Nugget")
+
+        mock_save.assert_called_once_with(["Chicken", "Nugget"])
+
+    def it_appends_object_before_calling_saveStrings_correctly_populated_array(mocker):
+        db = MyDB("dummyfile")
+
+        mocker.patch.object(db, "loadStrings", return_value=["Chicken", "Nuggets", "Are", "Really", "Good"])
+
+        mock_save = mocker.patch.object(db, "saveStrings")
+
+        db.saveString("Yum")
+
+        mock_save.assert_called_once_with(["Chicken", "Nuggets", "Are", "Really", "Good", "Yum"])
 
         
