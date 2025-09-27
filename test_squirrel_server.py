@@ -314,6 +314,16 @@ def describe_Squirrel_Server_Handlers():
 
                 mock_end_headers.assert_called_once()
 
+            def it_calls_send_response_when_delete_squirrels_is_called(mocker, dummy_client, dummy_server, mock_response_methods):
+                mocker.patch("squirrel_server.SquirrelDB.deleteSquirrel")
+                mock_get = mocker.patch("squirrel_server.SquirrelDB.getSquirrel", return_value={"id": "1"})
+                mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+
+                handler = SquirrelServerHandler.__new__(SquirrelServerHandler)
+                handler.handleSquirrelsDelete("1")
+
+                mock_send_response.assert_called_once_with(204)
+
         def describe_squirrel_does_not_exist():
 
             def it_returns_404_when_squirrel_does_not_exist(mocker, dummy_client, dummy_server):
@@ -348,4 +358,23 @@ def describe_Squirrel_Server_Handlers():
             
             mock_send_header.assert_called_once_with("Content-Type", "text/plain")
 
+        def it_calls_end_headers(mocker, dummy_client, dummy_server, mock_response_methods):
+            fake_wfile = mocker.Mock()
+            handler = SquirrelServerHandler.__new__(SquirrelServerHandler)
+            handler.wfile = fake_wfile
+            mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+            
+            handler.handle404()
+            
+            mock_end_headers.assert_called_once()
+
+        def it_calls_wfile_write_with_correct_information(mocker, dummy_client, dummy_server, mock_response_methods):
+            fake_wfile = mocker.Mock()
+            handler = SquirrelServerHandler.__new__(SquirrelServerHandler)
+            handler.wfile = fake_wfile
+            mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+            
+            handler.handle404()
+            
+            fake_wfile.write.assert_called_once_with(bytes("404 Not Found", "utf-8"))
 
