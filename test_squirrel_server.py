@@ -71,6 +71,7 @@ def patch_wbufsize(mocker):
 def fake_get_squirrels_request(mocker):
     return FakeRequest(mocker.Mock(), 'GET', '/squirrels')
 
+
 @pytest.fixture
 def fake_create_squirrel_request(mocker):
     return FakeRequest(mocker.Mock(), 'POST', '/squirrels', body='name=Chippy&size=small')
@@ -94,76 +95,257 @@ def mock_response_methods(mocker):
     return mock_send_response, mock_send_header, mock_end_headers
 
 
-#tests begin here. Your tests should look wildly different. 
-# you should begin testing where it makes sense to you.
-def describe_SquirrelServerHandler():
+def describe_Squirrel_Server_Handlers():
 
-    def describe_retrieve_squirrels_functionality():
+    def describe_handle_Squirrels_Index():
 
-        def it_queries_db_for_squirrels(mocker, dummy_client, dummy_server):
-            #setup
-            mock_get_squirrels = mocker.patch.object(SquirrelDB, 'getSquirrels', return_value=['squirrel'])
-            fake_get_squirrels_request = FakeRequest(mocker.Mock(), 'GET', '/squirrels')
-            
-            #do the thing
+        def it_calls_db_get_Squirrels(fake_get_squirrels_request, dummy_client, dummy_server, mock_db_get_squirrels):
             SquirrelServerHandler(fake_get_squirrels_request, dummy_client, dummy_server)
 
-            #assert that the thing was done
-            mock_get_squirrels.assert_called_once()
+            mock_db_get_squirrels.assert_called_once()
 
-        def it_returns_200_status_code(fake_get_squirrels_request, dummy_client, dummy_server, mock_response_methods):
-            
-            #set up
-            # note: this line 'expands' mock_response_methods into its respective parts
-            # only mock_send_response is used in this test. 
+        def it_returns_status_code_200(fake_get_squirrels_request, dummy_client, dummy_server, mock_response_methods):
             mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
-                 
-            # do the thing.
+
             SquirrelServerHandler(fake_get_squirrels_request, dummy_client, dummy_server)
-            
-            # assert methods calls and arguments
+
             mock_send_response.assert_called_once_with(200)
 
-        #look at these examples. They use fixtures. What fixtures should you use?
-        def it_sends_json_content_type_header(fake_get_squirrels_request, dummy_client, dummy_server, mock_db_get_squirrels, mock_response_methods):
+        def it_calls_send_header_with_correct_info(fake_get_squirrels_request, dummy_client, dummy_server, mock_response_methods):
             mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+
             SquirrelServerHandler(fake_get_squirrels_request, dummy_client, dummy_server)
+
             mock_send_header.assert_called_once_with("Content-Type", "application/json")
 
-        def it_calls_end_headers(fake_get_squirrels_request, dummy_client, dummy_server, mock_db_get_squirrels, mock_response_methods):
+        def it_calls_end_headers(fake_get_squirrels_request, dummy_client, dummy_server, mock_response_methods):
             mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+
             SquirrelServerHandler(fake_get_squirrels_request, dummy_client, dummy_server)
-            mock_end_headers.assert_called_once()
+
+            mock_end_headers.assert_called_once
+
+        def it_writes_json_list_of_squirrels(fake_get_squirrels_request, dummy_client, dummy_server, mocker):
+            mocker.patch.object(SquirrelDB, "getSquirrels", return_value=["squirrel"])
+            
+            handler = SquirrelServerHandler(fake_get_squirrels_request, dummy_client, dummy_server)
+
+            handler.wfile.write.assert_called_once_with(bytes(json.dumps(['squirrel']), "utf-8"))
+
+    def describe_handle_Squirrels_Retrieve():
+        
+        def describe_when_squirrel_exists():
+
+            def it_queries_db_with_correct_id(fake_get_squirrels_request, dummy_client, dummy_server, mock_db_get_squirrels, mock_db_get_squirrel):
+                handler = SquirrelServerHandler(fake_get_squirrels_request, dummy_client, dummy_server)
+
+                handler.handleSquirrelsRetrieve("39")
+
+                mock_db_get_squirrel.assert_called_once_with("39")
+
+            def it_sends_200_status_code(fake_get_squirrels_request, dummy_client, dummy_server, mock_db_get_squirrels, mock_response_methods):
+                mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+
+                handler = SquirrelServerHandler(fake_get_squirrels_request, dummy_client, dummy_server)
+
+                mock_send_response.assert_called_once_with(200)
+
+            def it_sends_json_content_type_header(fake_get_squirrels_request, dummy_client, dummy_server, mock_db_get_squirrels, mock_response_methods):
+                mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+                
+                handler = SquirrelServerHandler(fake_get_squirrels_request, dummy_client, dummy_server)
+
+                mock_send_header.assert_called_once_with("Content-Type", "application/json")
+
+            def it_calls_end_headers(fake_get_squirrels_request, dummy_client, dummy_server, mock_db_get_squirrels, mock_db_get_squirrel, mock_response_methods):
+                mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+                
+                handler = SquirrelServerHandler(fake_get_squirrels_request, dummy_client, dummy_server)
+                                
+                mock_end_headers.assert_called_once()
+
+            def it_writes_json_of_squirrel(fake_get_squirrels_request, dummy_client, dummy_server, mock_db_get_squirrels, mocker):
+                mocker.patch.object(SquirrelDB, "getSquirrel", return_value=["squirrel"])
+            
+                handler = SquirrelServerHandler(fake_get_squirrels_request, dummy_client, dummy_server)
+
+                handler.wfile.write.assert_called_once_with(bytes(json.dumps(['squirrel']), "utf-8"))
+
+        def describe_when_squirrel_does_not_exist():
+
+            def it_calls_handle404(mocker, fake_get_squirrels_request, dummy_client, dummy_server):
+                mocker.patch("squirrel_server.SquirrelDB.getSquirrel", return_value=None)
+                
+                handler = SquirrelServerHandler(fake_get_squirrels_request, dummy_client, dummy_server)
+                mock_404 = mocker.patch.object(SquirrelServerHandler, "handle404")
+                
+                handler.handleSquirrelsRetrieve("99")
+                mock_404.assert_called_once()
+
+    def describe_handle_Squirrels_Create():
+       
+        def describe_create_squirrels_with_good_request():
+
+            def it_creates_squirrel_with_correct_data(mocker, fake_create_squirrel_request, dummy_client, dummy_server):
+                mock_create = mocker.patch("squirrel_server.SquirrelDB.createSquirrel")
+                handler = SquirrelServerHandler(fake_create_squirrel_request, dummy_client, dummy_server)
+                mock_create.assert_called_once_with("Chippy", "small")
+
+            def it_sends_201_status_code(mocker, fake_create_squirrel_request, dummy_client, dummy_server, mock_response_methods):
+                handler = SquirrelServerHandler(fake_create_squirrel_request, dummy_client, dummy_server)
+                mock_response_methods[0].assert_called_once_with(201)
+
+            def it_calls_end_headers(mocker, fake_create_squirrel_request, dummy_client, dummy_server, mock_response_methods):
+                handler = SquirrelServerHandler(fake_create_squirrel_request, dummy_client, dummy_server)
+                mock_response_methods[2].assert_called_once()
+                
+    def describe_handle_Squirrels_Update():
+        
+        def describe_squirrel_exists():
+
+            def it_updates_existing_squirrel(mocker, dummy_client, dummy_server, mock_response_methods):
+                mocker.patch("squirrel_server.SquirrelDB.updateSquirrel")
+                mocker.patch("squirrel_server.SquirrelDB.getSquirrel", return_value={"id": "1"})
+                mocker.patch.object(SquirrelServerHandler, "getRequestData", return_value={"name": "Chippy", "size": "small"})
+                mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+
+                fake_request = FakeRequest(mocker.Mock(), "PUT", "/squirrels/1")
+                handler = SquirrelServerHandler(fake_request, dummy_client, dummy_server)
+
+                mock_send_response.assert_called_once_with(204)
+
+            def it_calls_getSquirrel_when_handle_squirrels_update_is_called(mocker, dummy_client, dummy_server, mock_response_methods):
+                mocker.patch("squirrel_server.SquirrelDB.updateSquirrel")
+                mock_get_squirrel = mocker.patch("squirrel_server.SquirrelDB.getSquirrel", return_value={"id": "1"})
+                mocker.patch.object(SquirrelServerHandler, "getRequestData", return_value={"name": "Chippy", "size": "small"})
+                mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+
+                fake_request = FakeRequest(mocker.Mock(), "PUT", "/squirrels/1")
+                handler = SquirrelServerHandler(fake_request, dummy_client, dummy_server)
+
+                mock_get_squirrel.assert_called_once_with('1')
+
+            def it_calls_updateSquirrel_when_handle_squirrels_update_is_called(mocker, dummy_client, dummy_server, mock_response_methods):
+                mock_update = mocker.patch("squirrel_server.SquirrelDB.updateSquirrel")
+                mocker.patch("squirrel_server.SquirrelDB.getSquirrel", return_value={"id": "1"})
+                mocker.patch.object(SquirrelServerHandler, "getRequestData", return_value={"name": "Chippy", "size": "small"})
+                mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+
+                fake_request = FakeRequest(mocker.Mock(), "PUT", "/squirrels/1")
+                handler = SquirrelServerHandler(fake_request, dummy_client, dummy_server)
+
+                mock_update.assert_called_once()
+
+            def it_calls_getRequestData_when_handle_squirrels_update_is_called(mocker, dummy_client, dummy_server, mock_response_methods):
+                mocker.patch("squirrel_server.SquirrelDB.updateSquirrel")
+                mocker.patch("squirrel_server.SquirrelDB.getSquirrel", return_value={"id": "1"})
+                mock_get_data = mocker.patch.object(SquirrelServerHandler, "getRequestData", return_value={"name": "Chippy", "size": "small"})
+                mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+
+                fake_request = FakeRequest(mocker.Mock(), "PUT", "/squirrels/1")
+                handler = SquirrelServerHandler(fake_request, dummy_client, dummy_server)
+
+                mock_get_data.assert_called_once()
+
+            def it_calls_end_headers_when_handle_squirrels_update_is_called(mocker, dummy_client, dummy_server, mock_response_methods):
+                mocker.patch("squirrel_server.SquirrelDB.updateSquirrel")
+                mocker.patch("squirrel_server.SquirrelDB.getSquirrel", return_value={"id": "1"})
+                mocker.patch.object(SquirrelServerHandler, "getRequestData", return_value={"name": "Chippy", "size": "small"})
+                mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+
+                fake_request = FakeRequest(mocker.Mock(), "PUT", "/squirrels/1")
+                handler = SquirrelServerHandler(fake_request, dummy_client, dummy_server)
+
+                mock_end_headers.assert_called_once()
+
+        def describe_squirrel_does_not_exist():
+            
+            def it_returns_404_when_squirrel_does_not_exist(mocker, dummy_client, dummy_server):
+                mocker.patch("squirrel_server.SquirrelDB.getSquirrel", return_value=None)
+                mock_404 = mocker.patch.object(SquirrelServerHandler, "handle404")
+
+                fake_request = FakeRequest(mocker.Mock(), "PUT", "/squirrels/999")
+                handler = SquirrelServerHandler(fake_request, dummy_client, dummy_server)
+
+                mock_404.assert_called_once()
+
+            def it_calls_getSquirrel_when_handle_squirrels_update_is_called_and_squirrel_does_not_exist(mocker, dummy_client, dummy_server, mock_response_methods):
+                mock_get_squirrel = mocker.patch("squirrel_server.SquirrelDB.getSquirrel", return_value=None)
+                mock_404 = mocker.patch.object(SquirrelServerHandler, "handle404")
+
+                fake_request = FakeRequest(mocker.Mock(), "PUT", "/squirrels/999")
+                handler = SquirrelServerHandler(fake_request, dummy_client, dummy_server)
+
+                mock_get_squirrel.assert_called_once_with("999")
 
 
-        # Note that we're doing something with the response from the
-        # SquirrelServerHandler in this test. 
-        # wfile is the object used to write back the HTTP response from the server.
-        # here, we're asserting that it is getting called and being passed the json 
-        # response that we mocked in the mock_db_get_squirrels patch.
+    def describe_handle_squirrels_delete():
 
-        def it_returns_response_body_with_squirrels_json_data(fake_get_squirrels_request, dummy_client, dummy_server, mock_db_get_squirrels):
-            #Setup: no more setup necessary. all the fixtures solve the setup problem
-            #note that mock_db_get_squirrels is passed in. Take that out of the parameters 
-            #and run the test again - by passing the fixture - the patch gets done...
-            #Do The thing:
-            response = SquirrelServerHandler(fake_get_squirrels_request, dummy_client, dummy_server)
-            #assert that the write function was called with a json version of the text 'squirrel'
-            # why that? look again at mock_db_get_squirrels
-            response.wfile.write.assert_called_once_with(bytes(json.dumps(['squirrel']), "utf-8"))
+        def describe_squirrel_exists():
+
+            def it_deletes_existing_squirrel(mocker, dummy_client, dummy_server, mock_response_methods):
+                mocker.patch("squirrel_server.SquirrelDB.deleteSquirrel")
+                mocker.patch("squirrel_server.SquirrelDB.getSquirrel", return_value={"id": "1"})
+                mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+
+                handler = SquirrelServerHandler.__new__(SquirrelServerHandler)
+                handler.handleSquirrelsDelete("1")
+
+                SquirrelDB.deleteSquirrel.assert_called_once_with("1")
+                mock_send_response.assert_called_once_with(204)
+
+            def it_calls_getSquirrel_when_delete_squirrels_is_called(mocker, dummy_client, dummy_server, mock_response_methods):
+                mocker.patch("squirrel_server.SquirrelDB.deleteSquirrel")
+                mock_get = mocker.patch("squirrel_server.SquirrelDB.getSquirrel", return_value={"id": "1"})
+                mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+
+                handler = SquirrelServerHandler.__new__(SquirrelServerHandler)
+                handler.handleSquirrelsDelete("1")
+
+                mock_get.assert_called_once()
+
+            def it_calls_end_headers_when_delete_squirrels_is_called(mocker, dummy_client, dummy_server, mock_response_methods):
+                mocker.patch("squirrel_server.SquirrelDB.deleteSquirrel")
+                mock_get = mocker.patch("squirrel_server.SquirrelDB.getSquirrel", return_value={"id": "1"})
+                mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+
+                handler = SquirrelServerHandler.__new__(SquirrelServerHandler)
+                handler.handleSquirrelsDelete("1")
+
+                mock_end_headers.assert_called_once()
+
+        def describe_squirrel_does_not_exist():
+
+            def it_returns_404_when_squirrel_does_not_exist(mocker, dummy_client, dummy_server):
+                mocker.patch("squirrel_server.SquirrelDB.getSquirrel", return_value=None)
+                mock_404 = mocker.patch.object(SquirrelServerHandler, "handle404")
+
+                handler = SquirrelServerHandler.__new__(SquirrelServerHandler)
+                handler.handleSquirrelsDelete("999")
+
+                mock_404.assert_called_once()
 
 
-    def describe_create_squirrels():
+    def describe_handle_404():
 
-        def it_queries_db_to_create_squirrel_with_given_data_attributes(mocker, fake_create_squirrel_request, dummy_client, dummy_server):
-            #setup.
-            #patch createSquirrel
-            mock_db_create_squirrel = mocker.patch.object(SquirrelDB,'createSquirrel',return_value=None)
+        def it_sends_404_status_code(mocker, dummy_client, dummy_server, mock_response_methods):
+            fake_wfile = mocker.Mock()
+            handler = SquirrelServerHandler.__new__(SquirrelServerHandler)
+            handler.wfile = fake_wfile
+            mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+            
+            handler.handle404()
+            
+            mock_send_response.assert_called_once_with(404)
 
-            #do the thing.
-            SquirrelServerHandler(fake_create_squirrel_request,dummy_client,dummy_server)
-
-            #assert the thing was done.
-            mock_db_create_squirrel.assert_called_once_with('Chippy','small')
+        def it_calls_send_header_with_correct_information(mocker, dummy_client, dummy_server, mock_response_methods):
+            fake_wfile = mocker.Mock()
+            handler = SquirrelServerHandler.__new__(SquirrelServerHandler)
+            handler.wfile = fake_wfile
+            mock_send_response, mock_send_header, mock_end_headers = mock_response_methods
+            
+            handler.handle404()
+            
+            mock_send_header.assert_called_once_with("Content-Type", "text/plain")
 
 
