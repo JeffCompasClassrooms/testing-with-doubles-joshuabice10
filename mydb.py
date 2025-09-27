@@ -12,7 +12,7 @@ class MyDB:
         with open(self.fname, 'rb') as f:
             arr = pickle.load(f)
         return arr
-
+        
     def saveStrings(self, arr):
         with open(self.fname, 'wb') as f:
             pickle.dump(arr, f)
