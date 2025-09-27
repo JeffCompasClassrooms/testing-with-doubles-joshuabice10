@@ -1,6 +1,11 @@
 from mydb import MyDB
 
 def describe_init():
+
+    def it_assigns_fname_attribute(mocker):
+            mocker.patch("os.path.isfile", return_value=True)
+            db = MyDB("mydatabase.db")
+            assert db.fname == "mydatabase.db"
     
     def it_calls_saveStrings_if_file_missing(mocker):
         mock_isfile = mocker.patch("os.path.isfile", return_value=False)
